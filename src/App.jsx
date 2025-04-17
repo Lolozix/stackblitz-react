@@ -1,43 +1,59 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { auth } from './config/firebaseConfig.js';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { SignJWT } from 'jose';
 
-export default function App() {
+function App() {
   const [email, setEmail] = useState('');
-  const [senha, setSenha] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState(null);
+  const navigate = useNavigate();
 
-  const autenticarComFirebase = async (evento) => {
-    evento.preventDefault();
+  const autenticarComFirebase = async (event) => {
+    event.preventDefault();
     try {
-      await signInWithEmailAndPassword(auth, email, senha);
-      alert('Autenticação bem-sucedida');
+      await signInWithEmailAndPassword(auth, email, password);
+
+      const secretKey = new TextEncoder().encode('minhaChaveSecreta');
+      const token = await new SignJWT({ user: email })
+        .setProtectedHeader({ alg: 'HS256' })
+        .setIssuedAt()
+        .setExpirationTime('1h')
+        .sign(secretKey);
+
+      localStorage.setItem('token', token);
+      navigate('/');
+      alert('Login realizado com sucesso!');
     } catch (error) {
-      console.error('Erro ao autenticar:', error);
-      alert('Erro na autenticação');
+      setError(error.message);
     }
   };
 
   return (
-    <main>
+    <div>
+      <h2>Login-se</h2>
       <form onSubmit={autenticarComFirebase}>
-        <label htmlFor="email">E-mail:</label>
         <input
-          id="email"
-          name="email"
           type="email"
+          placeholder="E-mail"
           value={email}
-          onChange={(evento) => setEmail(evento.target.value)}
+          onChange={(e) => setEmail(e.target.value)}
+          required
         />
-        <label htmlFor="password">Senha:</label>
         <input
-          id="password"
-          name="password"
           type="password"
-          value={senha}
-          onChange={(evento) => setSenha(evento.target.value)}
+          placeholder="Senha"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
         />
         <button type="submit">Entrar</button>
       </form>
-    </main>
+      {error && <p>{error}</p>}
+      <br />
+      <br />
+      <Link to="/registrar">Não tenho conta!</Link>
+    </div>
   );
 }
